@@ -11,6 +11,6 @@
 {% endfor %}
 
 {% for doc in docs %}
-    <p><a href="{{ url_for('check', id=doc.id) }}">Документ {{ doc.id }}</a> {{ doc.hash_bytes[:64] }}...</p>
+    <p><a href="{{ url_for('check', id=doc.id) }}">Документ {{ doc.id }}</a></p>
 {% endfor %}
 {% endblock %}

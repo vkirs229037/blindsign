@@ -14,6 +14,8 @@
     {{ form.csrf_token }}
     <p>
         {{ form.file.label() }}
+    </p>
+    <p>
         {{ form.file() }}
         {% if form.file.errors %}
             {% for error in form.file.errors %}

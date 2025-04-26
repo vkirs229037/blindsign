@@ -10,7 +10,7 @@
     <spam class="{{ category }}">{{ message }}</spam>
 {% endfor %}
 
-<p>Документ {{ doc.id }} {{ doc.masked_hash[:64] }}...</p>
+<p>Документ {{ doc.id }}</p>
 <p>Подпись: </p>
-<p>{{ doc.eds_bytes }}</p>
+<p>{{ eds }}</p>
 {% endblock %}

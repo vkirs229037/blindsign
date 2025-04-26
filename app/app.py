@@ -1,10 +1,11 @@
 from flask import Flask, render_template, url_for, redirect, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_login import LoginManager, UserMixin, current_user, login_required, login_user
+from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
 from forms import LoginForm, RegisterForm, SignForm, SendForm
 from sign import gen_keys, import_keys, gen_sign, gen_mask, import_public_key, mask_data, get_sign
 import os
+import base64
 
 app = Flask(__name__)
 app.debug = True
@@ -160,12 +161,22 @@ def check():
         return redirect(url_for("index"))
     doc_id = request.args["id"]
     doc = db.session.query(Document).filter(Document.id == doc_id).first()
-    return render_template("check.html", doc=doc)
+    rsakey = import_public_key(app.config["NOTARY_PUBLIC_KEY_LOCATION"])
+    eds = get_sign(doc.hash_bytes, doc.eds_bytes, doc.r, rsakey.e, rsakey.n)
+    eds_b64 = base64.standard_b64encode(eds.to_bytes(256)).decode()
+    return render_template("check.html", doc=doc, eds=eds_b64)
 
 @app.route("/")
 @login_required
 def index():
     return render_template("index.html", user=current_user)
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("Вы вышли из системы.", "info")
+    return redirect(url_for("login"))
 
 with app.app_context():
     db.create_all()
