@@ -1,7 +1,7 @@
 {% extends "main.html" %}
 
 {% block title %}
-Аутентификация
+Регистрация
 {% endblock %}
 
 {% block body %}
@@ -22,10 +22,28 @@
         {% endif %}
     </p>
     <p>
+        {{ form.name.label() }}
+        {{ form.name() }}
+        {% if form.name.errors %}
+            {% for error in form.name.errors %}
+                {{ error }}
+            {% endfor %}
+        {% endif %}
+    </p>
+    <p>
         {{ form.password.label() }}
         {{ form.password() }}
         {% if form.password.errors %}
             {% for error in form.password.errors %}
+                {{ error }}
+            {% endfor %}
+        {% endif %}
+    </p>
+    <p>
+        {{ form.repeat_password.label() }}
+        {{ form.repeat_password() }}
+        {% if form.repeat_password.errors %}
+            {% for error in form.repeat_password.errors %}
                 {{ error }}
             {% endfor %}
         {% endif %}
