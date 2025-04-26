@@ -17,7 +17,8 @@ def load_user(username: str):
 
 class User(db.Model, UserMixin):
     __tablename__ = "Users"
-    username = db.Column(db.String(64), nullable = False, primary_key = True)
+    id = db.Column(db.Integer(), nullable = False, primary_key = True)
+    username = db.Column(db.String(64), nullable = False, unique = True)
     name = db.Column(db.String(128), nullable = False)
     password_hash = db.Column(db.String(100), nullable = False)
 
@@ -41,13 +42,13 @@ class Transaction(db.Model):
 @app.route("/login", methods=["post", "get"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("/"))
+        return redirect(url_for("index"))
     form = LoginForm()
     if form.validate_on_submit():
         user = db.session.query(User).filter(User.username == form.username.data).first()
         if user and user.check_pw(form.password.data):
             login_user(user)
-            return redirect(url_for("/"))
+            return redirect(url_for("index"))
         flash("Неверное имя пользователя или пароль.", "error")
         return redirect(url_for("login"))
     
@@ -56,4 +57,4 @@ def login():
 @app.route("/")
 @login_required
 def index():
-    return render_template("main.html")
+    return render_template("main.html", name=current_user.name)
