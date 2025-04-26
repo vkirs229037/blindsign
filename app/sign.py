@@ -2,23 +2,12 @@ from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA512
 import gmpy2
 from gmpy2 import mpz
+import time
 
 rand_state = gmpy2.random_state()
 
-class UserInfo:
-    p: mpz
-    e: mpz
-    d: mpz
-
-class DocInfo:
-    r: mpz
-    sign: mpz
-
-def gen_coprime(n: mpz) -> mpz:
-    while True:
-        r = gmpy2.mpz_random(rand_state, gmpy2.isqrt(n))
-        if gmpy2.gcd(r, n) == 1:
-            return r
+def gen_mask(n: mpz) -> mpz:
+    return gmpy2.mpz_random(rand_state, n - 1)
 
 def gen_keys():
     return RSA.generate(2048)
@@ -32,7 +21,7 @@ def send_data_to_sign(data: bytes, p: mpz, e: mpz) -> mpz:
     m = mpz(int.from_bytes(sha.digest()))
     p = mpz(p)
     e = mpz(e)
-    r = gen_coprime(p)
+    r = gen_mask(p)
     m_temp = m * gmpy2.powmod(r, e, p)
     assert isinstance(m_temp, mpz)
     m_prime = m_temp % p
