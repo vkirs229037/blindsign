@@ -1,9 +1,9 @@
-from flask import Flask, render_template, url_for, redirect, flash
+from flask import Flask, render_template, url_for, redirect, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user
-from forms import LoginForm, RegisterForm
-from sign import gen_keys
+from forms import LoginForm, RegisterForm, SignForm
+from sign import gen_keys, import_keys, gen_sign
 import os
 
 app = Flask(__name__)
@@ -38,15 +38,12 @@ class User(db.Model, UserMixin):
     def check_pw(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
     
-class Document_to_sign(db.Model):
-    __tablename__ = "Documents_to_sign"
+class Document(db.Model):
+    __tablename__ = "Documents"
     id = db.Column(db.Integer(), nullable = False, primary_key = True)
+    username = db.Column(db.String(64), nullable = False)
     hash_bytes = db.Column(db.LargeBinary(), nullable = False)
-
-class Document_signed(db.Model):
-    __tablename__ = "Documents_signed"
-    id = db.Column(db.Integer(), nullable = False, primary_key = True)
-    eds_bytes = db.Column(db.LargeBinary(), nullable = False)
+    eds_bytes = db.Column(db.LargeBinary(), nullable = True)
 
 @app.route("/login", methods=["post", "get"])
 def login():
@@ -88,6 +85,38 @@ def register():
         flash("Регистрация прошла успешно.", "info")
         return redirect(url_for("login"))
     return render_template("register.html", form=form)
+
+@app.route("/queue")
+@login_required
+def queue():
+    if current_user.username != "notarius":
+        flash("Доступ запрещен.", "error")
+        return redirect(url_for("index"))
+    docs = db.session.query(Document).filter(Document.eds_bytes == None).all()
+    return render_template("queue.html", docs=docs)
+
+@app.route("/sign", methods=["post", "get"])
+@login_required
+def sign():
+    if current_user.username != "notarius":
+        flash("Доступ запрещен.", "error")
+        return redirect(url_for("index"))
+    doc_id = request.args["id"]
+    doc = db.session.query(Document).filter(Document.id == doc_id).first()
+    form = SignForm()
+    if form.validate_on_submit():
+        password = form.password.data
+        rsakey, result = import_keys(app.config["NOTARY_KEY_LOCATION"], password)
+        if not result:
+            flash("Неверный пароль.", "error")
+            return redirect(url_for("sign", id=doc_id))
+        signature = gen_sign(doc.hash_bytes.encode(), rsakey.d, rsakey.n)
+        doc.eds_bytes = signature.to_bytes(256)
+        db.session.add(doc)
+        db.session.commit()
+        flash("Успешно подписан документ.", "info")
+        return redirect(url_for("queue"))
+    return render_template("document.html", hash=doc.hash_bytes, form=form)
 
 @app.route("/")
 @login_required

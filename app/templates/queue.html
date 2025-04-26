@@ -1,0 +1,16 @@
+{% extends "main.html" %}
+
+{% block title %}
+Очередь на документы
+{% endblock %}
+
+{% block body %}
+
+{% for category, message in  get_flashed_messages(with_categories=true) %}
+    <spam class="{{ category }}">{{ message }}</spam>
+{% endfor %}
+
+{% for doc in docs %}
+    <p><a href="{{ url_for('sign', id=doc.id) }}">Документ {{ doc.id }}</a> {{ doc.hash_bytes }}</p>
+{% endfor %}
+{% endblock %}

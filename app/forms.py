@@ -13,3 +13,7 @@ class RegisterForm(FlaskForm):
     password = PasswordField("Пароль", validators=[DataRequired("Введите пароль")])
     repeat_password = PasswordField("Повторите пароль", validators=[DataRequired("Введите пароль еще раз")])
     submit = SubmitField()
+
+class SignForm(FlaskForm):
+    password = PasswordField("Введите пароль для подписи", validators=[DataRequired("Введите пароль")])
+    submit = SubmitField()

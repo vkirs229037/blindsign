@@ -9,8 +9,20 @@ rand_state = gmpy2.random_state()
 def gen_mask(n: mpz) -> mpz:
     return gmpy2.mpz_random(rand_state, n - 1)
 
-def gen_keys():
+def gen_keys() -> RSA.RsaKey:
     return RSA.generate(2048)
+
+def import_keys(file, pw) -> tuple[RSA.RsaKey | None, bool]:
+    rsakey = None
+    data = bytes()
+    with open(file, "rb") as f:
+        data = f.read()
+    try:
+        rsakey = RSA.import_key(data, pw)
+        return (rsakey, True)
+    # Не удалось импортировать ключ
+    except (ValueError, IndexError, TypeError):
+        return (None, False)
 
 # Используемые здесь p, e, d — из ключа Боба
 # r генерирует Алиса
@@ -28,7 +40,10 @@ def send_data_to_sign(data: bytes, n: mpz, e: mpz) -> mpz:
     return m_prime
 
 # Боб 
-def gen_sign(m_prime: mpz, d: mpz, n: mpz) -> mpz:
+def gen_sign(m_prime: bytes, d: int, n: int) -> mpz:
+    m_prime = mpz(int.from_bytes(m_prime))
+    d = mpz(d)
+    n = mpz(n)
     s_prime = gmpy2.powmod(m_prime, d, n)
     return s_prime
 

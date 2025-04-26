@@ -1,0 +1,31 @@
+{% extends "main.html" %}
+
+{% block title %}
+Документ 
+{% endblock %}
+
+{% block body %}
+
+{% for category, message in  get_flashed_messages(with_categories=true) %}
+    <spam class="{{ category }}">{{ message }}</spam>
+{% endfor %}
+
+<p>Подпись документа: {{ hash_bytes }}</p>
+
+<form action="" method="post">
+    {{ form.csrf_token }}
+    <p>
+        {{ form.password.label() }}
+        {{ form.password() }}
+        {% if form.password.errors %}
+            {% for error in form.password.errors %}
+                {{ error }}
+            {% endfor %}
+        {% endif %}
+    </p>
+    <p>
+        {{ form.submit() }}
+    </p>
+</form>
+
+{% endblock %}
