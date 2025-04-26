@@ -46,7 +46,6 @@ class Document_to_sign(db.Model):
 class Document_signed(db.Model):
     __tablename__ = "Documents_signed"
     id = db.Column(db.Integer(), nullable = False, primary_key = True)
-    hash_bytes = db.Column(db.LargeBinary(), nullable = False)
     eds_bytes = db.Column(db.LargeBinary(), nullable = False)
 
 @app.route("/login", methods=["post", "get"])
