@@ -14,6 +14,10 @@ login_manager = LoginManager(app)
 login_manager.login_view = "login"
 login_manager.login_message = "Войдите в свой аккаунт для доступа к системе."
 
+def log(msg):
+    if app.debug:
+        print("[DEBUG]: ", msg)
+
 @login_manager.user_loader
 def load_user(username: str):
     return db.session.query(User).get(username)
@@ -33,6 +37,17 @@ class User(db.Model, UserMixin):
 
     def check_pw(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+    
+class Document_to_sign(db.Model):
+    __tablename__ = "Documents_to_sign"
+    id = db.Column(db.Integer(), nullable = False, primary_key = True)
+    hash_bytes = db.Column(db.LargeBinary(), nullable = False)
+
+class Document_signed(db.Model):
+    __tablename__ = "Documents_signed"
+    id = db.Column(db.Integer(), nullable = False, primary_key = True)
+    hash_bytes = db.Column(db.LargeBinary(), nullable = False)
+    eds_bytes = db.Column(db.LargeBinary(), nullable = False)
 
 @app.route("/login", methods=["post", "get"])
 def login():
@@ -78,7 +93,7 @@ def register():
 @app.route("/")
 @login_required
 def index():
-    return render_template("index.html", name=current_user.name)
+    return render_template("index.html", user=current_user)
 
 with app.app_context():
     db.create_all()
