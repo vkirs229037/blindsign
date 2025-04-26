@@ -6,6 +6,10 @@
 
 {% block body %}
 
+{% for category, message in  get_flashed_messages(with_categories=true) %}
+    <spam class="{{ category }}">{{ message }}</spam>
+{% endfor %}
+
 <p>Добро пожаловать, {{ name }}</p>
 
 {% endblock %}
