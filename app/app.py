@@ -1,7 +1,8 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, url_for, redirect, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_login import LoginManager, UserMixin, current_user, login_required
+from flask_login import LoginManager, UserMixin, current_user, login_required, login_user
+from forms import LoginForm
 
 app = Flask(__name__)
 app.debug = True
@@ -37,9 +38,20 @@ class Transaction(db.Model):
     date = db.Column(db.Date())
     successful = db.Column(db.Boolean())
 
-@app.route("/login")
+@app.route("/login", methods=["post", "get"])
 def login():
-    return render_template("login.html")
+    if current_user.is_authenticated:
+        return redirect(url_for("/"))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = db.session.query(User).filter(User.username == form.username.data).first()
+        if user and user.check_pw(form.password.data):
+            login_user(user)
+            return redirect(url_for("/"))
+        flash("Неверное имя пользователя или пароль.", "error")
+        return redirect(url_for("login"))
+    
+    return render_template("login.html", form=form)
 
 @app.route("/")
 @login_required
