@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <title>{% block title %}{% endblock %}</title>
+        <link href="{{url_for('static', filename='css/style.css')}}" rel="stylesheet">
+        <!-- <link rel="shortcut icon" href="{{ url_for('static', filename='assets/favicon.ico') }}"> -->
+        {% block extracss %}
+        {% endblock %}
+    </head>
+    <body>
+        <div class="header">
+            Электронная подпись вслепую
+        </div>
+        <div class="main">
+            {% block body %}
+            {% endblock %}
+        </div>
+    </body>
+</html>
