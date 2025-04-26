@@ -5,10 +5,6 @@ from gmpy2 import mpz
 
 rand_state = gmpy2.random_state()
 
-def gen_hash(data: bytes) -> bytes:
-    sha512 = SHA512.new(data)
-    return sha512.digest()
-
 def gen_mask(n: mpz) -> mpz:
     return gmpy2.mpz_random(rand_state, n - 1)
 
@@ -37,17 +33,16 @@ def import_public_key(file) -> RSA.RsaKey:
 # Используемые здесь p, e, d — из ключа нотариуса
 # r генерирует отправитель документа (А)
 # А
-def mask_data(data: int, n: int, e: int) -> tuple[mpz, mpz]:
+def mask_data(data: int, n: int, e: int) -> tuple[mpz, mpz, mpz]:
     sha = SHA512.new()
     sha.update(data)
     m = mpz.from_bytes(sha.digest())
     n = mpz(n)
     e = mpz(e)
     r = gen_mask(n)
-    m_temp = m * gmpy2.powmod(r, e, n)
-    assert isinstance(m_temp, mpz)
-    m_prime = m_temp % n
-    return m, m_prime
+    m_temp = gmpy2.powmod(r, e, n)
+    m_prime = (m * m_temp) % n
+    return m, r, m_prime
 
 # Нотариус
 def gen_sign(m_prime: int, d: int, n: int) -> mpz:
@@ -58,13 +53,13 @@ def gen_sign(m_prime: int, d: int, n: int) -> mpz:
     return s_prime
 
 # А
-def get_sign(m: int, s_prime: int, r: int, e: int, n: int) -> mpz:
+def get_sign(m: int, s_prime: int, r: int, e: int, n: int) -> tuple[mpz, bool]:
     m = mpz(m)
     s_prime = mpz(s_prime)
     r = mpz(r)
     e = mpz(e)
     n = mpz(n)
-    s_temp = s_prime * gmpy2.invert(r, n)
-    assert isinstance(s_temp, mpz)
-    s = s_temp % n
-    return s
+    s = gmpy2.divm(s_prime, r, n)
+    test = gmpy2.powmod(s, e, n)
+    result = m == test
+    return s, result

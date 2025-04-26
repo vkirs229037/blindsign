@@ -135,8 +135,7 @@ def send():
         with open(filepath, "rb") as f:
             data = f.read()
         rsakey = import_public_key(app.config["NOTARY_PUBLIC_KEY_LOCATION"])
-        r = gen_mask(rsakey.n)
-        m, mprime = mask_data(data, rsakey.n, rsakey.e)
+        m, r, mprime = mask_data(data, rsakey.n, rsakey.e)
         doc = Document(username = current_user.username, hash_bytes = str(m), r = str(r), masked_hash = str(mprime))
         db.session.add(doc)
         db.session.commit()
@@ -162,7 +161,11 @@ def check():
     doc_id = request.args["id"]
     doc = db.session.query(Document).filter(Document.id == doc_id).first()
     rsakey = import_public_key(app.config["NOTARY_PUBLIC_KEY_LOCATION"])
-    eds = get_sign(doc.hash_bytes, doc.eds_bytes, doc.r, rsakey.e, rsakey.n)
+    eds, result = get_sign(doc.hash_bytes, doc.eds_bytes, doc.r, rsakey.e, rsakey.n)
+    if result:
+        flash("Подпись подтверждена и корректна.", "info")
+    else:
+        flash("Подпись не подтверждена.", "error")
     eds_b64 = base64.standard_b64encode(eds.to_bytes(256)).decode()
     return render_template("check.html", doc=doc, eds=eds_b64)
 
