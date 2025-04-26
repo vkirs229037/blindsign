@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user
 from forms import LoginForm, RegisterForm, SignForm, SendForm
-from sign import gen_keys, import_keys, gen_sign, gen_mask, import_public_key, mask_data
+from sign import gen_keys, import_keys, gen_sign, gen_mask, import_public_key, mask_data, get_sign
 import os
 
 app = Flask(__name__)
@@ -42,9 +42,10 @@ class Document(db.Model):
     __tablename__ = "Documents"
     id = db.Column(db.Integer(), nullable = False, primary_key = True)
     username = db.Column(db.String(64), nullable = False)
-    r = db.Column(db.LargeBinary(), nullable = False)
-    hash_bytes = db.Column(db.LargeBinary(), nullable = False)
-    eds_bytes = db.Column(db.LargeBinary(), nullable = True)
+    r = db.Column(db.Text(), nullable = False)
+    hash_bytes = db.Column(db.Text(), nullable = False)
+    masked_hash = db.Column(db.Text(), nullable = False)
+    eds_bytes = db.Column(db.Text(), nullable = True)
 
 @app.route("/login", methods=["post", "get"])
 def login():
@@ -111,13 +112,13 @@ def sign():
         if not result:
             flash("Неверный пароль.", "error")
             return redirect(url_for("sign", id=doc_id))
-        signature = gen_sign(doc.hash_bytes, rsakey.d, rsakey.n)
-        doc.eds_bytes = signature.to_bytes(256)
+        signature = gen_sign(doc.masked_hash, rsakey.d, rsakey.n)
+        doc.eds_bytes = str(signature)
         db.session.add(doc)
         db.session.commit()
         flash("Успешно подписан документ.", "info")
         return redirect(url_for("queue"))
-    return render_template("document.html", hash=doc.hash_bytes, form=form)
+    return render_template("document.html", hash=doc.masked_hash, form=form)
 
 @app.route("/send", methods=["post", "get"])
 @login_required
@@ -134,13 +135,32 @@ def send():
             data = f.read()
         rsakey = import_public_key(app.config["NOTARY_PUBLIC_KEY_LOCATION"])
         r = gen_mask(rsakey.n)
-        mprime = mask_data(data, rsakey.n, rsakey.e)
-        doc = Document(username = current_user.username, r = r.to_bytes(4096), hash_bytes = mprime.to_bytes(512))
+        m, mprime = mask_data(data, rsakey.n, rsakey.e)
+        doc = Document(username = current_user.username, hash_bytes = str(m), r = str(r), masked_hash = str(mprime))
         db.session.add(doc)
         db.session.commit()
         flash("Файл успешно отправлен на подпись.", "info")
         return redirect(url_for("send"))
     return render_template("send.html", form=form)
+
+@app.route("/signed")
+@login_required
+def signed():
+    if current_user.username == "notarius":
+        flash("Доступ запрещен.", "error")
+        return redirect(url_for("index"))
+    signed_docs = db.session.query(Document).filter(Document.eds_bytes != None, Document.username == current_user.username).all()
+    return render_template("signed.html", docs=signed_docs)
+
+@app.route("/check", methods = ["post", "get"])
+@login_required
+def check():
+    if current_user.username == "notarius":
+        flash("Доступ запрещен.", "error")
+        return redirect(url_for("index"))
+    doc_id = request.args["id"]
+    doc = db.session.query(Document).filter(Document.id == doc_id).first()
+    return render_template("check.html", doc=doc)
 
 @app.route("/")
 @login_required

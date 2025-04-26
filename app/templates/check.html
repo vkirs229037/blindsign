@@ -1,7 +1,7 @@
 {% extends "main.html" %}
 
 {% block title %}
-Очередь на документы
+Подписанный документ
 {% endblock %}
 
 {% block body %}
@@ -10,7 +10,7 @@
     <spam class="{{ category }}">{{ message }}</spam>
 {% endfor %}
 
-{% for doc in docs %}
-    <p><a href="{{ url_for('sign', id=doc.id) }}">Документ {{ doc.id }}</a> {{ doc.masked_hash[:64] }}...</p>
-{% endfor %}
+<p>Документ {{ doc.id }} {{ doc.masked_hash[:64] }}...</p>
+<p>Подпись: </p>
+<p>{{ doc.eds_bytes }}</p>
 {% endblock %}

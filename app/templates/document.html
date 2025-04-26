@@ -10,7 +10,7 @@
     <spam class="{{ category }}">{{ message }}</spam>
 {% endfor %}
 
-<p>Подпись документа: {{ hash_bytes }}</p>
+<p>Подпись документа: {{ hash[:64] }}...</p>
 
 <form action="" method="post">
     {{ form.csrf_token }}
