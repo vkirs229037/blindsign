@@ -10,6 +10,17 @@
     <spam class="{{ category }}">{{ message }}</spam>
 {% endfor %}
 
-<p>Добро пожаловать, {{ name }}</p>
+<p>Добро пожаловать, {{ user.username }}</p>
+
+{% if user.id == 1 %}
+
+<a href="/queue">Документы в очереди на подпись</a>
+
+{% else %}
+
+<a href="/send">Отправить документ на подпись</a>
+<a href="/signed">Посмотреть подписанные документы</a>
+
+{% endif %}
 
 {% endblock %}
