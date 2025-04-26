@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileRequired
 from wtforms import StringField, SubmitField, PasswordField
 from wtforms.validators import DataRequired
 
@@ -16,4 +17,8 @@ class RegisterForm(FlaskForm):
 
 class SignForm(FlaskForm):
     password = PasswordField("Введите пароль для подписи", validators=[DataRequired("Введите пароль")])
+    submit = SubmitField()
+
+class SendForm(FlaskForm):
+    file = FileField("Выберите документ для подписи", validators=[FileRequired("Выберите файл")])
     submit = SubmitField()

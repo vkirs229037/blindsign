@@ -2,8 +2,8 @@ from flask import Flask, render_template, url_for, redirect, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user
-from forms import LoginForm, RegisterForm, SignForm
-from sign import gen_keys, import_keys, gen_sign
+from forms import LoginForm, RegisterForm, SignForm, SendForm
+from sign import gen_keys, import_keys, gen_sign, gen_mask, import_public_key, mask_data
 import os
 
 app = Flask(__name__)
@@ -42,6 +42,7 @@ class Document(db.Model):
     __tablename__ = "Documents"
     id = db.Column(db.Integer(), nullable = False, primary_key = True)
     username = db.Column(db.String(64), nullable = False)
+    r = db.Column(db.LargeBinary(), nullable = False)
     hash_bytes = db.Column(db.LargeBinary(), nullable = False)
     eds_bytes = db.Column(db.LargeBinary(), nullable = True)
 
@@ -106,17 +107,40 @@ def sign():
     form = SignForm()
     if form.validate_on_submit():
         password = form.password.data
-        rsakey, result = import_keys(app.config["NOTARY_KEY_LOCATION"], password)
+        rsakey, result = import_keys(app.config["NOTARY_PRIVATE_KEY_LOCATION"], password)
         if not result:
             flash("Неверный пароль.", "error")
             return redirect(url_for("sign", id=doc_id))
-        signature = gen_sign(doc.hash_bytes.encode(), rsakey.d, rsakey.n)
+        signature = gen_sign(doc.hash_bytes, rsakey.d, rsakey.n)
         doc.eds_bytes = signature.to_bytes(256)
         db.session.add(doc)
         db.session.commit()
         flash("Успешно подписан документ.", "info")
         return redirect(url_for("queue"))
     return render_template("document.html", hash=doc.hash_bytes, form=form)
+
+@app.route("/send", methods=["post", "get"])
+@login_required
+def send():
+    if current_user.username == "notarius":
+        flash("Доступ запрещен.", "error")
+        return redirect(url_for("index"))
+    form = SendForm()
+    if form.validate_on_submit():
+        file = form.file.data
+        filepath = os.path.join(app.config["UPLOADS_PATH"], file.filename)
+        file.save(filepath)
+        with open(filepath, "rb") as f:
+            data = f.read()
+        rsakey = import_public_key(app.config["NOTARY_PUBLIC_KEY_LOCATION"])
+        r = gen_mask(rsakey.n)
+        mprime = mask_data(data, rsakey.n, rsakey.e)
+        doc = Document(username = current_user.username, r = r.to_bytes(4096), hash_bytes = mprime.to_bytes(512))
+        db.session.add(doc)
+        db.session.commit()
+        flash("Файл успешно отправлен на подпись.", "info")
+        return redirect(url_for("send"))
+    return render_template("send.html", form=form)
 
 @app.route("/")
 @login_required
@@ -131,11 +155,14 @@ with app.app_context():
         db.session.add(notary)
         db.session.commit()
 
-    if not os.path.exists(app.config["NOTARY_KEY_LOCATION"]):
+    if not os.path.exists(app.config["NOTARY_PRIVATE_KEY_LOCATION"]):
         rsakey = gen_keys()
-        with open(app.config["NOTARY_KEY_LOCATION"], "wb") as f:
+        with open(app.config["NOTARY_PRIVATE_KEY_LOCATION"], "wb") as f:
             data = rsakey.export_key(passphrase=app.config["NOTARY_PASSWORD"], 
                                     pkcs=8, 
                                     protection="PBKDF2WithHMAC-SHA512AndAES256-CBC", 
                                     prot_params={"iteration_count": 131072})
+            f.write(data)
+        with open(app.config["NOTARY_PUBLIC_KEY_LOCATION"], "wb") as f:
+            data = rsakey.public_key().export_key()
             f.write(data)

@@ -6,6 +6,10 @@ import time
 
 rand_state = gmpy2.random_state()
 
+def gen_hash(data: bytes) -> bytes:
+    sha512 = SHA512.new(data)
+    return sha512.digest()
+
 def gen_mask(n: mpz) -> mpz:
     return gmpy2.mpz_random(rand_state, n - 1)
 
@@ -23,11 +27,18 @@ def import_keys(file, pw) -> tuple[RSA.RsaKey | None, bool]:
     # Не удалось импортировать ключ
     except (ValueError, IndexError, TypeError):
         return (None, False)
+    
+def import_public_key(file) -> RSA.RsaKey:
+    data = bytes()
+    with open(file, "rb") as f:
+        data = f.read()
+    rsakey = RSA.import_key(data)
+    return rsakey
 
 # Используемые здесь p, e, d — из ключа Боба
 # r генерирует Алиса
 # Алиса
-def send_data_to_sign(data: bytes, n: mpz, e: mpz) -> mpz:
+def mask_data(data: bytes, n: mpz, e: mpz) -> mpz:
     sha = SHA512.new()
     sha.update(data)
     m = mpz(int.from_bytes(sha.digest()))
