@@ -15,27 +15,27 @@ def gen_keys():
 # Используемые здесь p, e, d — из ключа Боба
 # r генерирует Алиса
 # Алиса
-def send_data_to_sign(data: bytes, p: mpz, e: mpz) -> mpz:
+def send_data_to_sign(data: bytes, n: mpz, e: mpz) -> mpz:
     sha = SHA512.new()
     sha.update(data)
     m = mpz(int.from_bytes(sha.digest()))
-    p = mpz(p)
+    n = mpz(n)
     e = mpz(e)
-    r = gen_mask(p)
-    m_temp = m * gmpy2.powmod(r, e, p)
+    r = gen_mask(n)
+    m_temp = m * gmpy2.powmod(r, e, n)
     assert isinstance(m_temp, mpz)
-    m_prime = m_temp % p
+    m_prime = m_temp % n
     return m_prime
 
 # Боб 
-def gen_sign(m_prime: mpz, d: mpz, p: mpz) -> mpz:
-    s_prime = gmpy2.powmod(m_prime, d, p)
+def gen_sign(m_prime: mpz, d: mpz, n: mpz) -> mpz:
+    s_prime = gmpy2.powmod(m_prime, d, n)
     return s_prime
 
 # Алиса
-def verify_sign(m: mpz, s_prime: mpz, r: mpz, e: mpz, p: mpz) -> bool:
-    s_temp = s_prime * gmpy2.invert(r, p)
+def verify_sign(m: mpz, s_prime: mpz, r: mpz, e: mpz, n: mpz) -> bool:
+    s_temp = s_prime * gmpy2.invert(r, n)
     assert isinstance(s_temp, mpz)
-    s = s_temp % p
-    test = gmpy2.powmod(s, e, p)
+    s = s_temp % n
+    test = gmpy2.powmod(s, e, n)
     return m == test
