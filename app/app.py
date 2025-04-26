@@ -32,13 +32,8 @@ class User(db.Model, UserMixin):
     def check_pw(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
     
-
-class Transaction(db.Model):
-    __tablename__ = "Transactions"
-    username1 = db.Column(db.String(64), primary_key = True)
-    username2 = db.Column(db.String(64), primary_key = True)
-    date = db.Column(db.Date())
-    successful = db.Column(db.Boolean())
+notary = User(username="notarius", name="Нотариус")
+notary.set_pw(app.config["NOTARY_PASSWORD"])
 
 @app.route("/login", methods=["post", "get"])
 def login():
