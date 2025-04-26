@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user
 from forms import LoginForm, RegisterForm
+from sign import gen_keys
+import os
 
 app = Flask(__name__)
 app.debug = True
@@ -21,7 +23,7 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer(), nullable = False, primary_key = True)
     username = db.Column(db.String(64), nullable = False, unique = True)
     name = db.Column(db.String(128), nullable = False)
-    password_hash = db.Column(db.String(100), nullable = False)
+    password_hash = db.Column(db.String(256), nullable = False)
 
     def __repr__(self):
         return f"<User: {self.id}, {self.name} ({self.username})>"
@@ -31,9 +33,6 @@ class User(db.Model, UserMixin):
 
     def check_pw(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
-    
-notary = User(username="notarius", name="Нотариус")
-notary.set_pw(app.config["NOTARY_PASSWORD"])
 
 @app.route("/login", methods=["post", "get"])
 def login():
@@ -80,3 +79,20 @@ def register():
 @login_required
 def index():
     return render_template("index.html", name=current_user.name)
+
+with app.app_context():
+    db.create_all()
+    if not db.session.query(User).filter(User.username == "notarius").first():
+        notary = User(username="notarius", name="Нотариус")
+        notary.set_pw(app.config["NOTARY_PASSWORD"])
+        db.session.add(notary)
+        db.session.commit()
+
+    if not os.path.exists(app.config["NOTARY_KEY_LOCATION"]):
+        rsakey = gen_keys()
+        with open(app.config["NOTARY_KEY_LOCATION"], "wb") as f:
+            data = rsakey.export_key(passphrase=app.config["NOTARY_PASSWORD"], 
+                                    pkcs=8, 
+                                    protection="PBKDF2WithHMAC-SHA512AndAES256-CBC", 
+                                    prot_params={"iteration_count": 131072})
+            f.write(data)
