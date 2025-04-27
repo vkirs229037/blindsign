@@ -10,3 +10,4 @@ class BaseConfig:
     NOTARY_PUBLIC_KEY_LOCATION = os.environ.get("NOTARY_PUBLIC_KEY_LOCATION") or os.path.dirname(app_dir) + os.path.sep + "data" + os.path.sep + "pk.pem"
     NOTARY_PASSWORD = os.environ.get("NOTARY_PASSWORD") or "12345678"
     UPLOADS_PATH = os.path.join(app_dir, "..", "data")
+    LOG_FILE = os.path.join(app_dir, "..", "log.txt")

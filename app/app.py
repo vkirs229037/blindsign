@@ -6,6 +6,8 @@ from forms import LoginForm, RegisterForm, SignForm, SendForm
 from sign import gen_keys, import_keys, gen_sign, gen_mask, import_public_key, mask_data, get_sign
 import os
 import base64
+from config import app_dir
+import time
 
 app = Flask(__name__)
 app.debug = True
@@ -15,9 +17,15 @@ login_manager = LoginManager(app)
 login_manager.login_view = "login"
 login_manager.login_message = "Войдите в свой аккаунт для доступа к системе."
 
-def log(msg):
-    if app.debug:
-        print("[DEBUG]: ", msg)
+def log(level: int, msg: str):
+    with open(app.config["LOG_FILE"], "a") as f:
+        match level:
+            case 0:
+                prefix = "[INFO]  "
+            case 1:
+                prefix = "[ERROR] "
+        prefix += time.strftime("%d/%m/%Y %H:%M:%S ")
+        f.write(prefix + msg + "\n")
 
 @login_manager.user_loader
 def load_user(username: str):
@@ -56,9 +64,11 @@ def login():
     if form.validate_on_submit():
         user = db.session.query(User).filter(User.username == form.username.data).first()
         if user and user.check_pw(form.password.data):
+            log(0, f"пользователь {user.username} был авторизован")
             flash("Авторизация прошла успешно.", "info")
             login_user(user)
             return redirect(url_for("index"))
+        log(1, f"безуспешная попытка авторизации, username={form.username.data}")
         flash("Неверное имя пользователя или пароль.", "error")
         return redirect(url_for("login"))
     
@@ -73,9 +83,11 @@ def register():
     if form.validate_on_submit():
         user = db.session.query(User).filter(User.username == form.username.data).first()
         if user:
+            log(1, f"безуспешная попытка регистрации")
             flash("Пользователь уже существует.", "error")
             return redirect(url_for("register"))
         if form.password.data != form.repeat_password.data:
+            log(1, f"безуспешная попытка регистрации")
             flash("Пароль был введен неверно.", "error")
             return redirect(url_for("register"))
         
@@ -85,6 +97,7 @@ def register():
         db.session.add(user)
         db.session.commit()
 
+        log(0, f"пользователь {user.username} зарегистрировался")
         flash("Регистрация прошла успешно.", "info")
         return redirect(url_for("login"))
     return render_template("register.html", form=form)
@@ -111,12 +124,14 @@ def sign():
         password = form.password.data
         rsakey, result = import_keys(app.config["NOTARY_PRIVATE_KEY_LOCATION"], password)
         if not result:
+            log(1, f"нотариус неверно ввел пароль")
             flash("Неверный пароль.", "error")
             return redirect(url_for("sign", id=doc_id))
         signature = gen_sign(doc.masked_hash, rsakey.d, rsakey.n)
         doc.eds_bytes = str(signature)
         db.session.add(doc)
         db.session.commit()
+        log(0, f"нотариус подписал документ {doc_id}")
         flash("Успешно подписан документ.", "info")
         return redirect(url_for("queue"))
     return render_template("document.html", hash=doc.masked_hash, form=form)
@@ -135,10 +150,12 @@ def send():
         with open(filepath, "rb") as f:
             data = f.read()
         rsakey = import_public_key(app.config["NOTARY_PUBLIC_KEY_LOCATION"])
+        log(0, f"пользователь {current_user.username} импортировал открытый ключ нотариуса")
         m, r, mprime = mask_data(data, rsakey.n, rsakey.e)
         doc = Document(username = current_user.username, hash_bytes = str(m), r = str(r), masked_hash = str(mprime))
         db.session.add(doc)
         db.session.commit()
+        log(0, f"пользователь {current_user.username} отправил документ на подпись")
         flash("Файл успешно отправлен на подпись.", "info")
         return redirect(url_for("send"))
     return render_template("send.html", form=form)
@@ -161,10 +178,13 @@ def check():
     doc_id = request.args["id"]
     doc = db.session.query(Document).filter(Document.id == doc_id).first()
     rsakey = import_public_key(app.config["NOTARY_PUBLIC_KEY_LOCATION"])
+    log(0, f"пользователь {current_user.username} импортировал открытый ключ нотариуса")
     eds, result = get_sign(doc.hash_bytes, doc.eds_bytes, doc.r, rsakey.e, rsakey.n)
     if result:
+        log(0, f"пользователь {current_user.username} проверил подпись под документом {doc_id}; подпись корректна")
         flash("Подпись подтверждена и корректна.", "info")
     else:
+        log(0, f"пользователь {current_user.username} проверил подпись под документом {doc_id}; подпись некорректна")
         flash("Подпись не подтверждена.", "error")
     eds_b64 = base64.standard_b64encode(eds.to_bytes(256)).decode()
     return render_template("check.html", doc=doc, eds=eds_b64)
@@ -177,17 +197,22 @@ def index():
 @app.route("/logout")
 @login_required
 def logout():
+    log(0, f"пользователь {current_user.username} вышел из системы")
     logout_user()
     flash("Вы вышли из системы.", "info")
     return redirect(url_for("login"))
 
 with app.app_context():
+    if not os.path.exists(os.path.join(app_dir, "..", "data")):
+        os.makedirs(os.path.join(app_dir, "..", "data"))
+        log(0, f"создана папка data")
     db.create_all()
     if not db.session.query(User).filter(User.username == "notarius").first():
         notary = User(username="notarius", name="Нотариус")
         notary.set_pw(app.config["NOTARY_PASSWORD"])
         db.session.add(notary)
         db.session.commit()
+        log(0, f"создан пользователь нотариус")
 
     if not os.path.exists(app.config["NOTARY_PRIVATE_KEY_LOCATION"]):
         rsakey = gen_keys()
@@ -200,3 +225,4 @@ with app.app_context():
         with open(app.config["NOTARY_PUBLIC_KEY_LOCATION"], "wb") as f:
             data = rsakey.public_key().export_key()
             f.write(data)
+        log(0, f"ключи нотариуса сохранены")
