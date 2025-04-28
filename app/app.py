@@ -202,6 +202,10 @@ def logout():
     flash("Вы вышли из системы.", "info")
     return redirect(url_for("login"))
 
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
 with app.app_context():
     if not os.path.exists(os.path.join(app_dir, "..", "data")):
         os.makedirs(os.path.join(app_dir, "..", "data"))
