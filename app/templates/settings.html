@@ -1,0 +1,29 @@
+{% extends "main.html" %}
+
+{% block title %}
+Настройки
+{% endblock %}
+
+{% block body %}
+
+{% for category, message in  get_flashed_messages(with_categories=true) %}
+    <spam class="{{ category }}">{{ message }}</spam>
+{% endfor %}
+
+<form action="" method="post">
+    {{ form.csrf_token }}
+    <p>
+        {{ form.file.label() }}
+        {{ form.file() }}
+        {% if form.file.errors %}
+            {% for error in form.file.errors %}
+                {{ error }}
+            {% endfor %}
+        {% endif %}
+    </p>
+    <p>
+        {{ form.submit() }}
+    </p>
+</form>
+
+{% endblock %}

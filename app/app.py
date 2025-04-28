@@ -2,7 +2,7 @@ from flask import Flask, render_template, url_for, redirect, flash, request
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
-from forms import LoginForm, RegisterForm, SignForm, SendForm
+from forms import LoginForm, RegisterForm, SignForm, SendForm, PickFileForm
 from sign import gen_keys, import_keys, gen_sign, gen_mask, import_public_key, mask_data, get_sign
 import os
 import base64
@@ -205,6 +205,22 @@ def logout():
 @app.route("/about")
 def about():
     return render_template("about.html")
+
+@app.route("/settings", methods=["post", "get"])
+@login_required
+def settings():
+    form = PickFileForm()
+    if form.validate_on_submit():
+        try:
+            f = open(form.file.data, "x")
+            app.config["LOG_FILE"] = form.file.data
+            f.close()
+            flash("Успешно изменено расположение файла журнала", "info")
+            return redirect(url_for("settings"))
+        except (OSError, FileExistsError):
+            flash("Файл не мог быть создан.", "error")
+            return redirect(url_for("settings"))
+    return render_template("settings.html", form=form)
 
 with app.app_context():
     if not os.path.exists(os.path.join(app_dir, "..", "data")):

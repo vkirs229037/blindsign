@@ -4,3 +4,5 @@ __pycache__
 data
 .env
 *.docx*
+*.zip
+log.txt

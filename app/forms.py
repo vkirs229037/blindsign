@@ -22,3 +22,7 @@ class SignForm(FlaskForm):
 class SendForm(FlaskForm):
     file = FileField("Выберите документ для подписи", validators=[FileRequired("Выберите файл")])
     submit = SubmitField("Отправить")
+
+class PickFileForm(FlaskForm):
+    file = StringField("Введите путь к файлу журнала", validators=[DataRequired("Введите путь к файлу")])
+    submit = SubmitField("Выбрать")
